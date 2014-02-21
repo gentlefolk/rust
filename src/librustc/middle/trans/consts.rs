@@ -27,6 +27,7 @@ use middle::trans::inline;
 use middle::trans::machine;
 use middle::trans::type_::Type;
 use middle::trans::type_of;
+use middle::trans::debuginfo;
 use middle::ty;
 use util::ppaux::{Repr, ty_to_str};
 
@@ -706,5 +707,6 @@ pub fn trans_const(ccx: @CrateContext, m: ast::Mutability, id: ast::NodeId) {
         if m != ast::MutMutable {
             llvm::LLVMSetGlobalConstant(g, True);
         }
+        debuginfo::create_global_var_metadata(ccx, id, v);
     }
 }
