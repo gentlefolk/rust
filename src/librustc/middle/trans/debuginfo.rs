@@ -333,11 +333,10 @@ pub fn create_global_var_metadata(cx: &CrateContext,
                                                         type_metadata,
                                                         is_local_to_unit,
                                                         value,
-                                                        ptr::null())
+                                                        ptr::null());
             }
         })
     });
-    return;
 }
 
 /// Creates debug information for the given local variable.
