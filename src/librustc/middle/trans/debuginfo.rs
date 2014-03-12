@@ -286,7 +286,7 @@ pub fn finalize(cx: @CrateContext) {
 pub fn create_global_var_metadata(cx: &CrateContext,
                                   node_id: ast::NodeId,
                                   global: ValueRef) {
-    if !cx.sess.opts.debuginfo {
+    if cx.sess.opts.debuginfo == NoDebugInfo {
         return;
     }
 
