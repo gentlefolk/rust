@@ -707,6 +707,6 @@ pub fn trans_const(ccx: @CrateContext, m: ast::Mutability, id: ast::NodeId) {
         if m != ast::MutMutable {
             llvm::LLVMSetGlobalConstant(g, True);
         }
-        debuginfo::create_global_var_metadata(ccx, id, v);
+        debuginfo::create_global_var_metadata(ccx, id, g);
     }
 }

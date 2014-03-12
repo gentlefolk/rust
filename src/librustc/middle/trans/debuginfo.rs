@@ -285,7 +285,7 @@ pub fn finalize(cx: @CrateContext) {
 /// Adds the created metadata nodes directly to the crate's IR.
 pub fn create_global_var_metadata(cx: &CrateContext,
                                   node_id: ast::NodeId,
-                                  value: ValueRef) {
+                                  global: ValueRef) {
     if !cx.sess.opts.debuginfo {
         return;
     }
@@ -332,7 +332,7 @@ pub fn create_global_var_metadata(cx: &CrateContext,
                                                         loc.line as c_uint,
                                                         type_metadata,
                                                         is_local_to_unit,
-                                                        value,
+                                                        global,
                                                         ptr::null());
             }
         })
