@@ -19,10 +19,7 @@
 // they're in a different location than before. Hence, these tests are all run
 // serially here.
 
-extern crate extra;
-
-use extra::tempfile::TempDir;
-use std::io::fs;
+use std::io::{fs, TempDir};
 use std::io;
 use std::os;
 use std::task;
@@ -38,14 +35,14 @@ fn test_tempdir() {
 }
 
 fn test_rm_tempdir() {
-    let (rd, wr) = Chan::new();
+    let (tx, rx) = channel();
     let f: proc() = proc() {
         let tmp = TempDir::new("test_rm_tempdir").unwrap();
-        wr.send(tmp.path().clone());
+        tx.send(tmp.path().clone());
         fail!("fail to unwind past `tmp`");
     };
     task::try(f);
-    let path = rd.recv();
+    let path = rx.recv();
     assert!(!path.exists());
 
     let tmp = TempDir::new("test_rm_tempdir").unwrap();

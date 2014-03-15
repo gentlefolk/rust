@@ -12,12 +12,9 @@
 // This checks that preemption works.
 
 // note: halfway done porting to modern rust
-extern crate extra;
-
 use std::comm;
-use extra::comm;
 
-fn starve_main(alive: Port<int>) {
+fn starve_main(alive: Receiver<int>) {
     info!("signalling main");
     alive.recv();
     info!("starving main");

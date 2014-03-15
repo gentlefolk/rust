@@ -8,17 +8,21 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+#[allow(non_camel_case_types)];
+
 use driver::session::Session;
 use metadata::csearch;
 use metadata::decoder::{DefLike, DlDef, DlField, DlImpl};
 use middle::lang_items::LanguageItems;
 use middle::lint::{UnnecessaryQualification, UnusedImports};
 use middle::pat_util::pat_bindings;
+use util::nodemap::{NodeMap, DefIdSet};
 
 use syntax::ast::*;
 use syntax::ast;
-use syntax::ast_util::{def_id_of_def, local_def, mtwt_resolve};
+use syntax::ast_util::{def_id_of_def, local_def};
 use syntax::ast_util::{path_to_ident, walk_pat, trait_method_to_ty_method};
+use syntax::ext::mtwt;
 use syntax::parse::token::special_idents;
 use syntax::parse::token;
 use syntax::print::pprust::path_to_str;
@@ -29,11 +33,12 @@ use syntax::visit::Visitor;
 
 use std::cell::{Cell, RefCell};
 use std::uint;
-use std::hashmap::{HashMap, HashSet};
 use std::mem::replace;
+use std::vec_ng::Vec;
+use collections::{HashMap, HashSet};
 
 // Definition mapping
-pub type DefMap = @RefCell<HashMap<NodeId,Def>>;
+pub type DefMap = @RefCell<NodeMap<Def>>;
 
 struct binding_info {
     span: Span,
@@ -44,11 +49,11 @@ struct binding_info {
 type BindingMap = HashMap<Name,binding_info>;
 
 // Trait method resolution
-pub type TraitMap = HashMap<NodeId,@RefCell<~[DefId]>>;
+pub type TraitMap = NodeMap<Vec<DefId> >;
 
 // This is the replacement export map. It maps a module to all of the exports
 // within.
-pub type ExportMap2 = @RefCell<HashMap<NodeId, ~[Export2]>>;
+pub type ExportMap2 = @RefCell<NodeMap<Vec<Export2> >>;
 
 pub struct Export2 {
     name: ~str,        // The name of the target.
@@ -57,10 +62,10 @@ pub struct Export2 {
 
 // This set contains all exported definitions from external crates. The set does
 // not contain any entries from local crates.
-pub type ExternalExports = HashSet<DefId>;
+pub type ExternalExports = DefIdSet;
 
 // FIXME: dox
-pub type LastPrivateMap = HashMap<NodeId, LastPrivate>;
+pub type LastPrivateMap = NodeMap<LastPrivate>;
 
 pub enum LastPrivate {
     LastMod(PrivateDep),
@@ -103,7 +108,7 @@ enum PatternBindingMode {
     ArgumentIrrefutableMode,
 }
 
-#[deriving(Eq, IterBytes)]
+#[deriving(Eq, Hash)]
 enum Namespace {
     TypeNS,
     ValueNS
@@ -315,7 +320,7 @@ impl Rib {
 
 /// One import directive.
 struct ImportDirective {
-    module_path: ~[Ident],
+    module_path: Vec<Ident> ,
     subclass: @ImportDirectiveSubclass,
     span: Span,
     id: NodeId,
@@ -323,7 +328,7 @@ struct ImportDirective {
 }
 
 impl ImportDirective {
-    fn new(module_path: ~[Ident],
+    fn new(module_path: Vec<Ident> ,
            subclass: @ImportDirectiveSubclass,
            span: Span,
            id: NodeId,
@@ -434,7 +439,7 @@ struct Module {
     is_public: bool,
 
     children: RefCell<HashMap<Name, @NameBindings>>,
-    imports: RefCell<~[@ImportDirective]>,
+    imports: RefCell<Vec<@ImportDirective> >,
 
     // The external module children of this node that were declared with
     // `extern crate`.
@@ -454,7 +459,7 @@ struct Module {
     //
     // There will be an anonymous module created around `g` with the ID of the
     // entry block for `f`.
-    anonymous_children: RefCell<HashMap<NodeId,@Module>>,
+    anonymous_children: RefCell<NodeMap<@Module>>,
 
     // The status of resolving each import in this module.
     import_resolutions: RefCell<HashMap<Name, @ImportResolution>>,
@@ -484,9 +489,9 @@ impl Module {
             kind: Cell::new(kind),
             is_public: is_public,
             children: RefCell::new(HashMap::new()),
-            imports: RefCell::new(~[]),
+            imports: RefCell::new(Vec::new()),
             external_module_children: RefCell::new(HashMap::new()),
-            anonymous_children: RefCell::new(HashMap::new()),
+            anonymous_children: RefCell::new(NodeMap::new()),
             import_resolutions: RefCell::new(HashMap::new()),
             glob_count: Cell::new(0),
             resolved_import_count: Cell::new(0),
@@ -811,9 +816,9 @@ fn Resolver(session: Session,
         unresolved_imports: 0,
 
         current_module: current_module,
-        value_ribs: @RefCell::new(~[]),
-        type_ribs: @RefCell::new(~[]),
-        label_ribs: @RefCell::new(~[]),
+        value_ribs: @RefCell::new(Vec::new()),
+        type_ribs: @RefCell::new(Vec::new()),
+        label_ribs: @RefCell::new(Vec::new()),
 
         current_trait_refs: None,
 
@@ -822,14 +827,14 @@ fn Resolver(session: Session,
 
         primitive_type_table: @PrimitiveTypeTable(),
 
-        namespaces: ~[ TypeNS, ValueNS ],
+        namespaces: vec!(TypeNS, ValueNS),
 
-        def_map: @RefCell::new(HashMap::new()),
-        export_map2: @RefCell::new(HashMap::new()),
-        trait_map: HashMap::new(),
+        def_map: @RefCell::new(NodeMap::new()),
+        export_map2: @RefCell::new(NodeMap::new()),
+        trait_map: NodeMap::new(),
         used_imports: HashSet::new(),
-        external_exports: HashSet::new(),
-        last_private: HashMap::new(),
+        external_exports: DefIdSet::new(),
+        last_private: NodeMap::new(),
 
         emit_errors: true,
     };
@@ -855,16 +860,16 @@ struct Resolver {
 
     // The current set of local scopes, for values.
     // FIXME #4948: Reuse ribs to avoid allocation.
-    value_ribs: @RefCell<~[@Rib]>,
+    value_ribs: @RefCell<Vec<@Rib> >,
 
     // The current set of local scopes, for types.
-    type_ribs: @RefCell<~[@Rib]>,
+    type_ribs: @RefCell<Vec<@Rib> >,
 
     // The current set of local scopes, for labels.
-    label_ribs: @RefCell<~[@Rib]>,
+    label_ribs: @RefCell<Vec<@Rib> >,
 
     // The trait that the current context can refer to.
-    current_trait_refs: Option<~[DefId]>,
+    current_trait_refs: Option<Vec<DefId> >,
 
     // The ident for the keyword "self".
     self_ident: Ident,
@@ -875,7 +880,7 @@ struct Resolver {
     primitive_type_table: @PrimitiveTypeTable,
 
     // The four namespaces.
-    namespaces: ~[Namespace],
+    namespaces: Vec<Namespace> ,
 
     def_map: DefMap,
     export_map2: ExportMap2,
@@ -1448,7 +1453,7 @@ impl Resolver {
                     // globs and lists, the path is found directly in the AST;
                     // for simple paths we have to munge the path a little.
 
-                    let mut module_path = ~[];
+                    let mut module_path = Vec::new();
                     match view_path.node {
                         ViewPathSimple(_, ref full_path, _) => {
                             let path_len = full_path.segments.len();
@@ -1512,7 +1517,7 @@ impl Resolver {
                 }
             }
 
-            ViewItemExternMod(name, _, node_id) => {
+            ViewItemExternCrate(name, _, node_id) => {
                 // n.b. we don't need to look at the path option here, because cstore already did
                 match self.session.cstore.find_extern_mod_stmt_cnum(node_id) {
                     Some(crate_id) => {
@@ -1947,7 +1952,7 @@ impl Resolver {
     /// Creates and adds an import directive to the given module.
     fn build_import_directive(&mut self,
                               module_: @Module,
-                              module_path: ~[Ident],
+                              module_path: Vec<Ident> ,
                               subclass: @ImportDirectiveSubclass,
                               span: Span,
                               id: NodeId,
@@ -1968,7 +1973,7 @@ impl Resolver {
             SingleImport(target, _) => {
                 debug!("(building import directive) building import \
                         directive: {}::{}",
-                       self.idents_to_str(directive.module_path),
+                       self.idents_to_str(directive.module_path.as_slice()),
                        token::get_ident(target));
 
                 let mut import_resolutions = module_.import_resolutions
@@ -2081,13 +2086,14 @@ impl Resolver {
         let import_count = imports.get().len();
         while module.resolved_import_count.get() < import_count {
             let import_index = module.resolved_import_count.get();
-            let import_directive = imports.get()[import_index];
+            let import_directive = *imports.get().get(import_index);
             match self.resolve_import_for_module(module, import_directive) {
                 Failed => {
                     // We presumably emitted an error. Continue.
                     let msg = format!("failed to resolve import `{}`",
                                    self.import_path_to_str(
-                                       import_directive.module_path,
+                                       import_directive.module_path
+                                                       .as_slice(),
                                        *import_directive.subclass));
                     self.resolve_error(import_directive.span, msg);
                 }
@@ -2120,11 +2126,11 @@ impl Resolver {
     }
 
     fn path_idents_to_str(&mut self, path: &Path) -> ~str {
-        let identifiers: ~[ast::Ident] = path.segments
+        let identifiers: Vec<ast::Ident> = path.segments
                                              .iter()
                                              .map(|seg| seg.identifier)
                                              .collect();
-        self.idents_to_str(identifiers)
+        self.idents_to_str(identifiers.as_slice())
     }
 
     fn import_directive_subclass_to_str(&mut self,
@@ -2165,7 +2171,7 @@ impl Resolver {
 
         debug!("(resolving import for module) resolving import `{}::...` in \
                 `{}`",
-               self.idents_to_str(*module_path),
+               self.idents_to_str(module_path.as_slice()),
                self.module_to_str(module_));
 
         // First, resolve the module path for the directive, if necessary.
@@ -2174,7 +2180,7 @@ impl Resolver {
             Some((self.graph_root.get_module(), LastMod(AllPublic)))
         } else {
             match self.resolve_module_path(module_,
-                                           *module_path,
+                                           module_path.as_slice(),
                                            DontUseLexicalScope,
                                            import_directive.span,
                                            ImportSearch) {
@@ -3270,15 +3276,15 @@ impl Resolver {
         if index != import_count {
             let sn = self.session
                          .codemap
-                         .span_to_snippet(imports.get()[index].span)
+                         .span_to_snippet(imports.get().get(index).span)
                          .unwrap();
             if sn.contains("::") {
-                self.resolve_error(imports.get()[index].span,
+                self.resolve_error(imports.get().get(index).span,
                                    "unresolved import");
             } else {
                 let err = format!("unresolved import (maybe you meant `{}::*`?)",
                                sn.slice(0, sn.len()));
-                self.resolve_error(imports.get()[index].span, err);
+                self.resolve_error(imports.get().get(index).span, err);
             }
         }
 
@@ -3370,7 +3376,7 @@ impl Resolver {
     }
 
     fn record_exports_for_module(&mut self, module_: @Module) {
-        let mut exports2 = ~[];
+        let mut exports2 = Vec::new();
 
         self.add_exports_for_module(&mut exports2, module_);
         match module_.def_id.get() {
@@ -3385,7 +3391,7 @@ impl Resolver {
     }
 
     fn add_exports_of_namebindings(&mut self,
-                                   exports2: &mut ~[Export2],
+                                   exports2: &mut Vec<Export2> ,
                                    name: Name,
                                    namebindings: @NameBindings,
                                    ns: Namespace) {
@@ -3406,7 +3412,7 @@ impl Resolver {
     }
 
     fn add_exports_for_module(&mut self,
-                              exports2: &mut ~[Export2],
+                              exports2: &mut Vec<Export2> ,
                               module_: @Module) {
         let import_resolutions = module_.import_resolutions.borrow();
         for (name, importresolution) in import_resolutions.get().iter() {
@@ -3491,7 +3497,7 @@ impl Resolver {
     /// Wraps the given definition in the appropriate number of `def_upvar`
     /// wrappers.
     fn upvarify(&mut self,
-                    ribs: &mut ~[@Rib],
+                    ribs: &mut Vec<@Rib> ,
                     rib_index: uint,
                     def_like: DefLike,
                     span: Span)
@@ -3516,7 +3522,7 @@ impl Resolver {
 
         let mut rib_index = rib_index + 1;
         while rib_index < ribs.len() {
-            match ribs[rib_index].kind {
+            match ribs.get(rib_index).kind {
                 NormalRibKind => {
                     // Nothing to do. Continue.
                 }
@@ -3606,7 +3612,7 @@ impl Resolver {
     }
 
     fn search_ribs(&mut self,
-                       ribs: &mut ~[@Rib],
+                       ribs: &mut Vec<@Rib> ,
                        name: Name,
                        span: Span)
                        -> Option<DefLike> {
@@ -3617,7 +3623,7 @@ impl Resolver {
         while i != 0 {
             i -= 1;
             let binding_opt = {
-                let bindings = ribs[i].bindings.borrow();
+                let bindings = ribs.get(i).bindings.borrow();
                 bindings.get().find_copy(&name)
             };
             match binding_opt {
@@ -3688,7 +3694,7 @@ impl Resolver {
                                             generics,
                                             implemented_traits,
                                             self_type,
-                                            *methods);
+                                            methods.as_slice());
             }
 
             ItemTrait(ref generics, ref traits, ref methods) => {
@@ -3762,7 +3768,7 @@ impl Resolver {
             ItemStruct(ref struct_def, ref generics) => {
                 self.resolve_struct(item.id,
                                     generics,
-                                    struct_def.fields);
+                                    struct_def.fields.as_slice());
             }
 
             ItemMod(ref module_) => {
@@ -4091,7 +4097,7 @@ impl Resolver {
                         TraitImplementation);
 
                     // Record the current set of trait references.
-                    let mut new_trait_refs = ~[];
+                    let mut new_trait_refs = Vec::new();
                     {
                         let def_map = this.def_map.borrow();
                         let r = def_map.get().find(&trait_reference.ref_id);
@@ -4174,7 +4180,7 @@ impl Resolver {
     fn binding_mode_map(&mut self, pat: @Pat) -> BindingMap {
         let mut result = HashMap::new();
         pat_bindings(self.def_map, pat, |binding_mode, _id, sp, path| {
-            let name = mtwt_resolve(path_to_ident(path));
+            let name = mtwt::resolve(path_to_ident(path));
             result.insert(name,
                           binding_info {span: sp,
                                         binding_mode: binding_mode});
@@ -4185,8 +4191,10 @@ impl Resolver {
     // check that all of the arms in an or-pattern have exactly the
     // same set of bindings, with the same binding modes for each.
     fn check_consistent_bindings(&mut self, arm: &Arm) {
-        if arm.pats.len() == 0 { return; }
-        let map_0 = self.binding_mode_map(arm.pats[0]);
+        if arm.pats.len() == 0 {
+            return
+        }
+        let map_0 = self.binding_mode_map(*arm.pats.get(0));
         for (i, p) in arm.pats.iter().enumerate() {
             let map_i = self.binding_mode_map(*p);
 
@@ -4244,7 +4252,7 @@ impl Resolver {
         self.check_consistent_bindings(arm);
 
         visit::walk_expr_opt(self, arm.guard, ());
-        self.resolve_block(arm.body);
+        self.resolve_expr(arm.body);
 
         let mut value_ribs = self.value_ribs.borrow_mut();
         value_ribs.get().pop();
@@ -4289,7 +4297,7 @@ impl Resolver {
 
             TyPath(ref path, ref bounds, path_id) => {
                 // This is a path in the type namespace. Walk through scopes
-                // scopes looking for it.
+                // looking for it.
                 let mut result_def = None;
 
                 // First, check to see whether the name is a primitive type.
@@ -4406,8 +4414,8 @@ impl Resolver {
                     // such a value is simply disallowed (since it's rarely
                     // what you want).
 
-                    let ident = path.segments[0].identifier;
-                    let renamed = mtwt_resolve(ident);
+                    let ident = path.segments.get(0).identifier;
+                    let renamed = mtwt::resolve(ident);
 
                     match self.resolve_bare_identifier_pattern(ident) {
                         FoundStructOrEnumVariant(def, lp)
@@ -4486,8 +4494,9 @@ impl Resolver {
                                     {
                                         let mut value_ribs =
                                             this.value_ribs.borrow_mut();
-                                        let last_rib = value_ribs.get()[
-                                            value_ribs.get().len() - 1];
+                                        let length = value_ribs.get().len();
+                                        let last_rib = value_ribs.get().get(
+                                            length - 1);
                                         let mut bindings =
                                             last_rib.bindings.borrow_mut();
                                         bindings.get().insert(renamed,
@@ -4512,8 +4521,9 @@ impl Resolver {
                                     {
                                         let mut value_ribs =
                                             this.value_ribs.borrow_mut();
-                                        let last_rib = value_ribs.get()[
-                                                value_ribs.get().len() - 1];
+                                        let length = value_ribs.get().len();
+                                        let last_rib = value_ribs.get().get(
+                                                length - 1);
                                         let mut bindings =
                                             last_rib.bindings.borrow_mut();
                                         bindings.get().insert(renamed,
@@ -4961,7 +4971,7 @@ impl Resolver {
         let search_result;
         match namespace {
             ValueNS => {
-                let renamed = mtwt_resolve(ident);
+                let renamed = mtwt::resolve(ident);
                 let mut value_ribs = self.value_ribs.borrow_mut();
                 search_result = self.search_ribs(value_ribs.get(),
                                                  renamed,
@@ -5048,8 +5058,8 @@ impl Resolver {
                                 -> Option<~str> {
         let this = &mut *self;
 
-        let mut maybes: ~[token::InternedString] = ~[];
-        let mut values: ~[uint] = ~[];
+        let mut maybes: Vec<token::InternedString> = Vec::new();
+        let mut values: Vec<uint> = Vec::new();
 
         let mut j = {
             let value_ribs = this.value_ribs.borrow();
@@ -5058,7 +5068,7 @@ impl Resolver {
         while j != 0 {
             j -= 1;
             let value_ribs = this.value_ribs.borrow();
-            let bindings = value_ribs.get()[j].bindings.borrow();
+            let bindings = value_ribs.get().get(j).bindings.borrow();
             for (&k, _) in bindings.get().iter() {
                 maybes.push(token::get_name(k));
                 values.push(uint::MAX);
@@ -5067,20 +5077,20 @@ impl Resolver {
 
         let mut smallest = 0;
         for (i, other) in maybes.iter().enumerate() {
-            values[i] = name.lev_distance(other.get());
+            *values.get_mut(i) = name.lev_distance(other.get());
 
-            if values[i] <= values[smallest] {
+            if *values.get(i) <= *values.get(smallest) {
                 smallest = i;
             }
         }
 
         if values.len() > 0 &&
-            values[smallest] != uint::MAX &&
-            values[smallest] < name.len() + 2 &&
-            values[smallest] <= max_distance &&
-            name != maybes[smallest].get() {
+            *values.get(smallest) != uint::MAX &&
+            *values.get(smallest) < name.len() + 2 &&
+            *values.get(smallest) <= max_distance &&
+            name != maybes.get(smallest).get() {
 
-            Some(maybes[smallest].get().to_str())
+            Some(maybes.get(smallest).get().to_str())
 
         } else {
             None
@@ -5204,13 +5214,13 @@ impl Resolver {
             ExprLoop(_, Some(label)) => {
                 self.with_label_rib(|this| {
                     let def_like = DlDef(DefLabel(expr.id));
-                    // plain insert (no renaming)
                     {
                         let mut label_ribs = this.label_ribs.borrow_mut();
-                        let rib = label_ribs.get()[label_ribs.get().len() -
-                                                   1];
+                        let length = label_ribs.get().len();
+                        let rib = label_ribs.get().get(length - 1);
                         let mut bindings = rib.bindings.borrow_mut();
-                        bindings.get().insert(label.name, def_like);
+                        let renamed = mtwt::resolve(label);
+                        bindings.get().insert(renamed, def_like);
                     }
 
                     visit::walk_expr(this, expr, ());
@@ -5221,11 +5231,12 @@ impl Resolver {
 
             ExprBreak(Some(label)) | ExprAgain(Some(label)) => {
                 let mut label_ribs = self.label_ribs.borrow_mut();
-                match self.search_ribs(label_ribs.get(), label, expr.span) {
+                let renamed = mtwt::resolve(label);
+                match self.search_ribs(label_ribs.get(), renamed, expr.span) {
                     None =>
                         self.resolve_error(expr.span,
                                               format!("use of undeclared label `{}`",
-                                                   token::get_name(label))),
+                                                   token::get_ident(label))),
                     Some(DlDef(def @ DefLabel(_))) => {
                         // Since this def is a label, it is never read.
                         self.record_def(expr.id, (def, LastMod(AllPublic)))
@@ -5252,75 +5263,14 @@ impl Resolver {
                 // the field name so that we can do some nice error reporting
                 // later on in typeck.
                 let traits = self.search_for_traits_containing_method(ident);
-                self.trait_map.insert(expr.id, @RefCell::new(traits));
+                self.trait_map.insert(expr.id, traits);
             }
-            ExprMethodCall(_, ident, _, _) => {
+            ExprMethodCall(ident, _, _) => {
                 debug!("(recording candidate traits for expr) recording \
                         traits for {}",
                        expr.id);
                 let traits = self.search_for_traits_containing_method(ident);
-                self.trait_map.insert(expr.id, @RefCell::new(traits));
-            }
-            ExprBinary(_, BiAdd, _, _) | ExprAssignOp(_, BiAdd, _, _) => {
-                let i = self.lang_items.add_trait();
-                self.add_fixed_trait_for_expr(expr.id, i);
-            }
-            ExprBinary(_, BiSub, _, _) | ExprAssignOp(_, BiSub, _, _) => {
-                let i = self.lang_items.sub_trait();
-                self.add_fixed_trait_for_expr(expr.id, i);
-            }
-            ExprBinary(_, BiMul, _, _) | ExprAssignOp(_, BiMul, _, _) => {
-                let i = self.lang_items.mul_trait();
-                self.add_fixed_trait_for_expr(expr.id, i);
-            }
-            ExprBinary(_, BiDiv, _, _) | ExprAssignOp(_, BiDiv, _, _) => {
-                let i = self.lang_items.div_trait();
-                self.add_fixed_trait_for_expr(expr.id, i);
-            }
-            ExprBinary(_, BiRem, _, _) | ExprAssignOp(_, BiRem, _, _) => {
-                let i = self.lang_items.rem_trait();
-                self.add_fixed_trait_for_expr(expr.id, i);
-            }
-            ExprBinary(_, BiBitXor, _, _) | ExprAssignOp(_, BiBitXor, _, _) => {
-                let i = self.lang_items.bitxor_trait();
-                self.add_fixed_trait_for_expr(expr.id, i);
-            }
-            ExprBinary(_, BiBitAnd, _, _) | ExprAssignOp(_, BiBitAnd, _, _) => {
-                let i = self.lang_items.bitand_trait();
-                self.add_fixed_trait_for_expr(expr.id, i);
-            }
-            ExprBinary(_, BiBitOr, _, _) | ExprAssignOp(_, BiBitOr, _, _) => {
-                let i = self.lang_items.bitor_trait();
-                self.add_fixed_trait_for_expr(expr.id, i);
-            }
-            ExprBinary(_, BiShl, _, _) | ExprAssignOp(_, BiShl, _, _) => {
-                let i = self.lang_items.shl_trait();
-                self.add_fixed_trait_for_expr(expr.id, i);
-            }
-            ExprBinary(_, BiShr, _, _) | ExprAssignOp(_, BiShr, _, _) => {
-                let i = self.lang_items.shr_trait();
-                self.add_fixed_trait_for_expr(expr.id, i);
-            }
-            ExprBinary(_, BiLt, _, _) | ExprBinary(_, BiLe, _, _) |
-            ExprBinary(_, BiGe, _, _) | ExprBinary(_, BiGt, _, _) => {
-                let i = self.lang_items.ord_trait();
-                self.add_fixed_trait_for_expr(expr.id, i);
-            }
-            ExprBinary(_, BiEq, _, _) | ExprBinary(_, BiNe, _, _) => {
-                let i = self.lang_items.eq_trait();
-                self.add_fixed_trait_for_expr(expr.id, i);
-            }
-            ExprUnary(_, UnNeg, _) => {
-                let i = self.lang_items.neg_trait();
-                self.add_fixed_trait_for_expr(expr.id, i);
-            }
-            ExprUnary(_, UnNot, _) => {
-                let i = self.lang_items.not_trait();
-                self.add_fixed_trait_for_expr(expr.id, i);
-            }
-            ExprIndex(..) => {
-                let i = self.lang_items.index_trait();
-                self.add_fixed_trait_for_expr(expr.id, i);
+                self.trait_map.insert(expr.id, traits);
             }
             _ => {
                 // Nothing to do.
@@ -5328,11 +5278,11 @@ impl Resolver {
         }
     }
 
-    fn search_for_traits_containing_method(&mut self, name: Ident) -> ~[DefId] {
+    fn search_for_traits_containing_method(&mut self, name: Ident) -> Vec<DefId> {
         debug!("(searching for traits containing method) looking for '{}'",
                token::get_ident(name));
 
-        let mut found_traits = ~[];
+        let mut found_traits = Vec::new();
         let mut search_module = self.current_module;
         let method_map = self.method_map.borrow();
         match method_map.get().find(&name.name) {
@@ -5404,7 +5354,7 @@ impl Resolver {
     }
 
     fn add_trait_info(&self,
-                          found_traits: &mut ~[DefId],
+                          found_traits: &mut Vec<DefId> ,
                           trait_def_id: DefId,
                           name: Ident) {
         debug!("(adding trait info) found trait {}:{} for method '{}'",
@@ -5412,17 +5362,6 @@ impl Resolver {
                trait_def_id.node,
                token::get_ident(name));
         found_traits.push(trait_def_id);
-    }
-
-    fn add_fixed_trait_for_expr(&mut self,
-                                    expr_id: NodeId,
-                                    trait_id: Option<DefId>) {
-        match trait_id {
-            Some(trait_id) => {
-                self.trait_map.insert(expr_id, @RefCell::new(~[trait_id]));
-            }
-            None => {}
-        }
     }
 
     fn record_def(&mut self, node_id: NodeId, (def, lp): (Def, LastPrivate)) {
@@ -5480,7 +5419,7 @@ impl Resolver {
         if vi.span == DUMMY_SP { return }
 
         match vi.node {
-            ViewItemExternMod(..) => {} // ignore
+            ViewItemExternCrate(..) => {} // ignore
             ViewItemUse(ref path) => {
                 for p in path.iter() {
                     match p.node {
@@ -5560,7 +5499,7 @@ impl Resolver {
 
     /// A somewhat inefficient routine to obtain the name of a module.
     fn module_to_str(&mut self, module_: @Module) -> ~str {
-        let mut idents = ~[];
+        let mut idents = Vec::new();
         let mut current_module = module_;
         loop {
             match current_module.parent_link {
@@ -5581,7 +5520,9 @@ impl Resolver {
         if idents.len() == 0 {
             return ~"???";
         }
-        return self.idents_to_str(idents.move_rev_iter().collect::<~[ast::Ident]>());
+        return self.idents_to_str(idents.move_rev_iter()
+                                        .collect::<Vec<ast::Ident>>()
+                                        .as_slice());
     }
 
     #[allow(dead_code)]   // useful for debugging

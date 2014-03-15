@@ -9,11 +9,10 @@
 // except according to those terms.
 
 use std::uint;
-use std::cast::{transmute, transmute_mut_unsafe,
-                transmute_region, transmute_mut_region};
+use std::cast::{transmute, transmute_mut_unsafe};
 use stack::Stack;
-use std::unstable::stack;
-use std::unstable::raw;
+use std::rt::stack;
+use std::raw;
 
 // FIXME #7761: Registers is boxed so that it is 16-byte aligned, for storing
 // SSE regs.  It would be marginally better not to do this. In C++ we
@@ -55,10 +54,6 @@ impl Context {
         // Save and then immediately load the current context,
         // which we will then modify to call the given function when restored
         let mut regs = new_regs();
-        unsafe {
-            rust_swap_registers(transmute_mut_region(&mut *regs),
-                                transmute_region(&*regs));
-        };
 
         initialize_call_frame(&mut *regs,
                               init,
@@ -288,17 +283,16 @@ fn initialize_call_frame(regs: &mut Registers, fptr: InitFn, arg: uint,
     unsafe { *sp = 0; }
 
     regs[4] = arg as uint;
+    regs[5] = procedure.code as uint;
+    regs[6] = procedure.env as uint;
     regs[29] = sp as uint;
     regs[25] = fptr as uint;
     regs[31] = fptr as uint;
 }
 
 fn align_down(sp: *mut uint) -> *mut uint {
-    unsafe {
-        let sp: uint = transmute(sp);
-        let sp = sp & !(16 - 1);
-        transmute::<uint, *mut uint>(sp)
-    }
+    let sp = (sp as uint) & !(16 - 1);
+    sp as *mut uint
 }
 
 // ptr::mut_offset is positive ints only

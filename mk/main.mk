@@ -218,8 +218,12 @@ LLVM_TOOLS=bugpoint llc llvm-ar llvm-as llvm-dis llvm-mc opt llvm-extract
 define DEF_LLVM_VARS
 # The configure script defines these variables with the target triples
 # separated by Z. This defines new ones with the expected format.
+ifeq ($$(CFG_LLVM_ROOT),)
 CFG_LLVM_BUILD_DIR_$(1):=$$(CFG_LLVM_BUILD_DIR_$(subst -,_,$(1)))
 CFG_LLVM_INST_DIR_$(1):=$$(CFG_LLVM_INST_DIR_$(subst -,_,$(1)))
+else
+CFG_LLVM_INST_DIR_$(1):=$$(CFG_LLVM_ROOT)
+endif
 
 # Any rules that depend on LLVM should depend on LLVM_CONFIG
 LLVM_CONFIG_$(1):=$$(CFG_LLVM_INST_DIR_$(1))/bin/llvm-config$$(X_$(1))
@@ -318,7 +322,7 @@ CSREQ$(1)_T_$(2)_H_$(3) = \
 	$$(foreach dep,$$(HOST_CRATES),$$(HLIB$(1)_H_$(3))/stamp.$$(dep))
 
 ifeq ($(1),0)
-# Don't run the the stage0 compiler under valgrind - that ship has sailed
+# Don't run the stage0 compiler under valgrind - that ship has sailed
 CFG_VALGRIND_COMPILE$(1) =
 else
 CFG_VALGRIND_COMPILE$(1) = $$(CFG_VALGRIND_COMPILE)
@@ -341,10 +345,10 @@ endif
 ifdef CFG_DISABLE_RPATH
 ifeq ($$(OSTYPE_$(3)),apple-darwin)
   RPATH_VAR$(1)_T_$(2)_H_$(3) := \
-      DYLD_LIBRARY_PATH="$$$$DYLD_LIBRARY_PATH:$$(HLIB$(1)_H_$(3))"
+      DYLD_LIBRARY_PATH="$$$$DYLD_LIBRARY_PATH:$$(CURDIR)/$$(HLIB$(1)_H_$(3))"
 else
   RPATH_VAR$(1)_T_$(2)_H_$(3) := \
-      LD_LIBRARY_PATH="$$$$LD_LIBRARY_PATH:$$(HLIB$(1)_H_$(3))"
+      LD_LIBRARY_PATH="$$$$LD_LIBRARY_PATH:$$(CURDIR)/$$(HLIB$(1)_H_$(3))"
 endif
 else
     RPATH_VAR$(1)_T_$(2)_H_$(3) :=

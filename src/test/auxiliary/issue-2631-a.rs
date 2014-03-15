@@ -12,10 +12,10 @@
 #[crate_id="req"];
 #[crate_type = "lib"];
 
-extern crate extra;
+extern crate collections;
 
 use std::cell::RefCell;
-use std::hashmap::HashMap;
+use collections::HashMap;
 
 pub type header_map = HashMap<~str, @RefCell<~[@~str]>>;
 

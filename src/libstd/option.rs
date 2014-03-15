@@ -39,19 +39,15 @@
 
 use any::Any;
 use clone::Clone;
-use clone::DeepClone;
 use cmp::{Eq, TotalEq, TotalOrd};
 use default::Default;
-use fmt;
 use iter::{Iterator, DoubleEndedIterator, FromIterator, ExactSize};
 use kinds::Send;
 use mem;
-use str::OwnedStr;
-use to_str::ToStr;
 use vec;
 
 /// The option type
-#[deriving(Clone, DeepClone, Eq, Ord, TotalEq, TotalOrd, ToStr)]
+#[deriving(Clone, Eq, Ord, TotalEq, TotalOrd, Show)]
 pub enum Option<T> {
     /// No value
     None,
@@ -108,7 +104,7 @@ impl<T> Option<T> {
         }
     }
 
-    /// Convert from `Option<T>` to `&[T]` (without copying)
+    /// Convert from `Option<T>` to `&mut [T]` (without copying)
     #[inline]
     pub fn as_mut_slice<'r>(&'r mut self) -> &'r mut [T] {
         match *self {
@@ -215,19 +211,13 @@ impl<T> Option<T> {
     /// Return an iterator over the possibly contained value
     #[inline]
     pub fn iter<'r>(&'r self) -> Item<&'r T> {
-        match *self {
-            Some(ref x) => Item{opt: Some(x)},
-            None => Item{opt: None}
-        }
+        Item{opt: self.as_ref()}
     }
 
     /// Return a mutable iterator over the possibly contained value
     #[inline]
     pub fn mut_iter<'r>(&'r mut self) -> Item<&'r mut T> {
-        match *self {
-            Some(ref mut x) => Item{opt: Some(x)},
-            None => Item{opt: None}
-        }
+        Item{opt: self.as_mut()}
     }
 
     /// Return a consuming iterator over the possibly contained value
@@ -299,10 +289,13 @@ impl<T> Option<T> {
 
     /// Applies a function zero or more times until the result is `None`.
     #[inline]
-    pub fn while_some(self, blk: |v: T| -> Option<T>) {
+    pub fn while_some(self, f: |v: T| -> Option<T>) {
         let mut opt = self;
-        while opt.is_some() {
-            opt = blk(opt.unwrap());
+        loop {
+            match opt {
+                Some(x) => opt = f(x),
+                None => break
+            }
         }
     }
 
@@ -380,16 +373,6 @@ impl<T: Default> Option<T> {
 // Trait implementations
 /////////////////////////////////////////////////////////////////////////////
 
-impl<T: fmt::Show> fmt::Show for Option<T> {
-    #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Some(ref t) => write!(f.buf, "Some({})", *t),
-            None        => write!(f.buf, "None")
-        }
-    }
-}
-
 impl<T> Default for Option<T> {
     #[inline]
     fn default() -> Option<T> { None }
@@ -400,7 +383,7 @@ impl<T> Default for Option<T> {
 /////////////////////////////////////////////////////////////////////////////
 
 /// An iterator that yields either one or zero elements
-#[deriving(Clone, DeepClone)]
+#[deriving(Clone)]
 pub struct Item<A> {
     priv opt: Option<A>
 }
@@ -517,7 +500,7 @@ mod tests {
         #[unsafe_destructor]
         impl ::ops::Drop for R {
            fn drop(&mut self) {
-                let ii = self.i.borrow();
+                let ii = self.i.deref();
                 ii.set(ii.get() + 1);
             }
         }
@@ -534,7 +517,7 @@ mod tests {
             let opt = Some(x);
             let _y = opt.unwrap();
         }
-        assert_eq!(i.borrow().get(), 1);
+        assert_eq!(i.deref().get(), 1);
     }
 
     #[test]
