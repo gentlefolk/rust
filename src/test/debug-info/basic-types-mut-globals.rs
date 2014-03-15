@@ -22,65 +22,65 @@
 // debugger:finish
 
 // Check initializers
-// debugger:print B
+// debugger:print 'basic-types-mut-globals'::B
 // check:$1 = false
-// debugger:print I
+// debugger:print 'basic-types-mut-globals'::I
 // check:$2 = -1
-// debugger:print C
+// debugger:print 'basic-types-mut-globals'::C
 // check:$3 = 97
-// debugger:print/d I8
+// debugger:print/d 'basic-types-mut-globals'::I8
 // check:$4 = 68
-// debugger:print I16
+// debugger:print 'basic-types-mut-globals'::I16
 // check:$5 = -16
-// debugger:print I32
+// debugger:print 'basic-types-mut-globals'::I32
 // check:$6 = -32
-// debugger:print I64
+// debugger:print 'basic-types-mut-globals'::I64
 // check:$7 = -64
-// debugger:print U
+// debugger:print 'basic-types-mut-globals'::U
 // check:$8 = 1
-// debugger:print/d U8
+// debugger:print/d 'basic-types-mut-globals'::U8
 // check:$9 = 100
-// debugger:print U16
+// debugger:print 'basic-types-mut-globals'::U16
 // check:$10 = 16
-// debugger:print U32
+// debugger:print 'basic-types-mut-globals'::U32
 // check:$11 = 32
-// debugger:print U64
+// debugger:print 'basic-types-mut-globals'::U64
 // check:$12 = 64
-// debugger:print F32
+// debugger:print 'basic-types-mut-globals'::F32
 // check:$13 = 2.5
-// debugger:print F64
+// debugger:print 'basic-types-mut-globals'::F64
 // check:$14 = 3.5
 // debugger:continue
 // debugger:finish
 
 // Check new values
-// debugger:print B
+// debugger:print 'basic-types-mut-globals'::B
 // check:$15 = true
-// debugger:print I
+// debugger:print 'basic-types-mut-globals'::I
 // check:$16 = 2
-// debugger:print C
+// debugger:print 'basic-types-mut-globals'::C
 // check:$17 = 102
-// debugger:print/d I8
+// debugger:print/d 'basic-types-mut-globals'::I8
 // check:$18 = 78
-// debugger:print I16
+// debugger:print 'basic-types-mut-globals'::I16
 // check:$19 = -26
-// debugger:print I32
+// debugger:print 'basic-types-mut-globals'::I32
 // check:$20 = -12
-// debugger:print I64
+// debugger:print 'basic-types-mut-globals'::I64
 // check:$21 = -54
-// debugger:print U
+// debugger:print 'basic-types-mut-globals'::U
 // check:$22 = 5
-// debugger:print/d U8
+// debugger:print/d 'basic-types-mut-globals'::U8
 // check:$23 = 20
-// debugger:print U16
+// debugger:print 'basic-types-mut-globals'::U16
 // check:$24 = 32
-// debugger:print U32
+// debugger:print 'basic-types-mut-globals'::U32
 // check:$25 = 16
-// debugger:print U64
-// check:$26 = 132
-// debugger:print F32
+// debugger:print 'basic-types-mut-globals'::U64
+// check:$26 = 128
+// debugger:print 'basic-types-mut-globals'::F32
 // check:$27 = 5.75
-// debugger:print F64
+// debugger:print 'basic-types-mut-globals'::F64
 // check:$28 = 9.25
 
 // debugger:detach

@@ -20,33 +20,33 @@
 // debugger:rbreak zzz
 // debugger:run
 // debugger:finish
-// debugger:print B
+// debugger:print 'basic-types-globals'::B
 // check:$1 = false
-// debugger:print I
+// debugger:print 'basic-types-globals'::I
 // check:$2 = -1
-// debugger:print C
+// debugger:print 'basic-types-globals'::C
 // check:$3 = 97
-// debugger:print/d I8
+// debugger:print/d 'basic-types-globals'::I8
 // check:$4 = 68
-// debugger:print I16
+// debugger:print 'basic-types-globals'::I16
 // check:$5 = -16
-// debugger:print I32
+// debugger:print 'basic-types-globals'::I32
 // check:$6 = -32
-// debugger:print I64
+// debugger:print 'basic-types-globals'::I64
 // check:$7 = -64
-// debugger:print U
+// debugger:print 'basic-types-globals'::U
 // check:$8 = 1
-// debugger:print/d U8
+// debugger:print/d 'basic-types-globals'::U8
 // check:$9 = 100
-// debugger:print U16
+// debugger:print 'basic-types-globals'::U16
 // check:$10 = 16
-// debugger:print U32
+// debugger:print 'basic-types-globals'::U32
 // check:$11 = 32
-// debugger:print U64
+// debugger:print 'basic-types-globals'::U64
 // check:$12 = 64
-// debugger:print F32
+// debugger:print 'basic-types-globals'::F32
 // check:$13 = 2.5
-// debugger:print F64
+// debugger:print 'basic-types-globals'::F64
 // check:$14 = 3.5
 // debugger:detach
 // debugger:quit

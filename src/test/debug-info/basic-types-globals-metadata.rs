@@ -14,33 +14,33 @@
 // debugger:rbreak zzz
 // debugger:run
 // debugger:finish
-// debugger:whatis B
+// debugger:whatis 'basic-types-globals-metadata'::B
 // check:type = bool
-// debugger:whatis I
+// debugger:whatis 'basic-types-globals-metadata'::I
 // check:type = int
-// debugger:whatis C
+// debugger:whatis 'basic-types-globals-metadata'::C
 // check:type = char
-// debugger:whatis I8
+// debugger:whatis 'basic-types-globals-metadata'::I8
 // check:type = i8
-// debugger:whatis I16
+// debugger:whatis 'basic-types-globals-metadata'::I16
 // check:type = i16
-// debugger:whatis I32
+// debugger:whatis 'basic-types-globals-metadata'::I32
 // check:type = i32
-// debugger:whatis I64
+// debugger:whatis 'basic-types-globals-metadata'::I64
 // check:type = i64
-// debugger:whatis U
+// debugger:whatis 'basic-types-globals-metadata'::U
 // check:type = uint
-// debugger:whatis U8
+// debugger:whatis 'basic-types-globals-metadata'::U8
 // check:type = u8
-// debugger:whatis U16
+// debugger:whatis 'basic-types-globals-metadata'::U16
 // check:type = u16
-// debugger:whatis U32
+// debugger:whatis 'basic-types-globals-metadata'::U32
 // check:type = u32
-// debugger:whatis U64
+// debugger:whatis 'basic-types-globals-metadata'::U64
 // check:type = u64
-// debugger:whatis F32
+// debugger:whatis 'basic-types-globals-metadata'::F32
 // check:type = f32
-// debugger:whatis F64
+// debugger:whatis 'basic-types-globals-metadata'::F64
 // check:type = f64
 // debugger:detach
 // debugger:quit
