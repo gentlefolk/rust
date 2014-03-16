@@ -34,15 +34,12 @@
 // check:$7 = {15, 16}
 
 // debugger:print 'simple-tuple'::NO_PADDING_16
-// check:$8 = {-100, 100, 101}
-// debugger:print 'simple-tuple'::MUT_NO_PADDING_16
-// check:$9 = {-10, 10, 9}
+// check:$8 = {-10, 10, 9}
 
 #[allow(unused_variable)];
 #[allow(dead_code)];
 
-static NO_PADDING_16: (i16, i16, u16) = (-100, 100, 101);
-static mut MUT_NO_PADDING_16: (i16, i16, u16) = (-100, 100, 101);
+static mut NO_PADDING_16: (i16, i16, u16) = (-100, 100, 101);
 
 fn main() {
     let noPadding8: (i8, u8) = (-100, 100);
@@ -56,7 +53,7 @@ fn main() {
     let paddingAtEnd: (i32, i16) = (15, 16);
 
     unsafe {
-        MUT_NO_PADDING_16 = (-10, 10, 9);
+        NO_PADDING_16 = (-10, 10, 9);
     }
 
     zzz();
