@@ -47,20 +47,20 @@
 
 #[allow(unused_variable)];
 
-pub static B: bool = false;
-pub static I: int = -1;
-pub static C: char = 'a';
-pub static I8: i8 = 68;
-pub static I16: i16 = -16;
-pub static I32: i32 = -32;
-pub static I64: i64 = -64;
-pub static U: uint = 1;
-pub static U8: u8 = 100;
-pub static U16: u16 = 16;
-pub static U32: u32 = 32;
-pub static U64: u64 = 64;
-pub static F32: f32 = 2.5;
-pub static F64: f64 = 3.5;
+static B: bool = false;
+static I: int = -1;
+static C: char = 'a';
+static I8: i8 = 68;
+static I16: i16 = -16;
+static I32: i32 = -32;
+static I64: i64 = -64;
+static U: uint = 1;
+static U8: u8 = 100;
+static U16: u16 = 16;
+static U32: u32 = 32;
+static U64: u64 = 64;
+static F32: f32 = 2.5;
+static F64: f64 = 3.5;
 
 fn main() {
     _zzz();

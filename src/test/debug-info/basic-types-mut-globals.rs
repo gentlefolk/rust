@@ -88,20 +88,20 @@
 
 #[allow(unused_variable)];
 
-pub static mut B: bool = false;
-pub static mut I: int = -1;
-pub static mut C: char = 'a';
-pub static mut I8: i8 = 68;
-pub static mut I16: i16 = -16;
-pub static mut I32: i32 = -32;
-pub static mut I64: i64 = -64;
-pub static mut U: uint = 1;
-pub static mut U8: u8 = 100;
-pub static mut U16: u16 = 16;
-pub static mut U32: u32 = 32;
-pub static mut U64: u64 = 64;
-pub static mut F32: f32 = 2.5;
-pub static mut F64: f64 = 3.5;
+static mut B: bool = false;
+static mut I: int = -1;
+static mut C: char = 'a';
+static mut I8: i8 = 68;
+static mut I16: i16 = -16;
+static mut I32: i32 = -32;
+static mut I64: i64 = -64;
+static mut U: uint = 1;
+static mut U8: u8 = 100;
+static mut U16: u16 = 16;
+static mut U32: u32 = 32;
+static mut U64: u64 = 64;
+static mut F32: f32 = 2.5;
+static mut F64: f64 = 3.5;
 
 fn main() {
     _zzz();
