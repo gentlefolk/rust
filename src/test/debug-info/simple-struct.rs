@@ -34,7 +34,14 @@
 // debugger:print padding_at_end
 // check:$6 = {x = -10014, y = 10015}
 
+// debugger:print 'simple-struct'::NO_PADDING_16
+// check:$7 = {x = 1000, y = -1001}
+
+// debugger:print 'simple-struct'::MUT_NO_PADDING_16
+// check:$8 = {x = 100, y = -101}
+
 #[allow(unused_variable)];
+#[allow(dead_code)];
 
 struct NoPadding16 {
     x: u16,
@@ -70,6 +77,9 @@ struct PaddingAtEnd {
     y: u16
 }
 
+static NO_PADDING_16: NoPadding16 = NoPadding16 { x: 1000, y: -1001 };
+static mut MUT_NO_PADDING_16: NoPadding16 = NoPadding16 { x: 1000, y: -1001 };
+
 fn main() {
     let no_padding16 = NoPadding16 { x: 10000, y: -10001 };
     let no_padding32 = NoPadding32 { x: -10002, y: -10003.5, z: 10004 };
@@ -78,6 +88,11 @@ fn main() {
 
     let internal_padding = InternalPadding { x: 10012, y: -10013 };
     let padding_at_end = PaddingAtEnd { x: -10014, y: 10015 };
+
+    unsafe {
+        MUT_NO_PADDING_16.x = 100;
+        MUT_NO_PADDING_16.y = -101;
+    }
 
     zzz();
 }
