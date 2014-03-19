@@ -59,7 +59,7 @@ pub fn trans_stmt<'a>(cx: &'a Block<'a>,
                         debuginfo::create_local_var_metadata(bcx, *local);
                     }
                 }
-                ast::DeclItem(i) => trans_item(cx.fcx.ccx, i)
+                ast::DeclItem(i) => trans_item(cx.fcx.ccx, i, Some(cx.fcx))
             }
         }
         ast::StmtMac(..) => cx.tcx().sess.bug("unexpanded macro")

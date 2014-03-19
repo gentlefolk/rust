@@ -1677,11 +1677,13 @@ pub struct TransItemVisitor {
 
 impl Visitor<()> for TransItemVisitor {
     fn visit_item(&mut self, i: &ast::Item, _:()) {
-        trans_item(self.ccx, i);
+        trans_item(self.ccx, i, None);
     }
 }
 
-pub fn trans_item(ccx: @CrateContext, item: &ast::Item) {
+pub fn trans_item(ccx: @CrateContext,
+                  item: &ast::Item,
+                  fcx: Option<&FunctionContext>) {
     let _icx = push_ctxt("trans_item");
     match item.node {
       ast::ItemFn(decl, purity, _abis, ref generics, body) => {
@@ -1719,7 +1721,7 @@ pub fn trans_item(ccx: @CrateContext, item: &ast::Item) {
         }
       }
       ast::ItemStatic(_, m, expr) => {
-          consts::trans_const(ccx, m, item.id);
+          consts::trans_const(ccx, fcx, m, item.id);
           // Do static_assert checking. It can't really be done much earlier
           // because we need to get the value of the bool out of LLVM
           if attr::contains_name(item.attrs.as_slice(), "static_assert") {
@@ -1780,7 +1782,7 @@ pub fn trans_struct_def(ccx: @CrateContext, struct_def: @ast::StructDef) {
 pub fn trans_mod(ccx: @CrateContext, m: &ast::Mod) {
     let _icx = push_ctxt("trans_mod");
     for item in m.items.iter() {
-        trans_item(ccx, *item);
+        trans_item(ccx, *item, None);
     }
 }
 

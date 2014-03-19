@@ -284,6 +284,7 @@ pub fn finalize(cx: @CrateContext) {
 ///
 /// Adds the created metadata nodes directly to the crate's IR.
 pub fn create_global_var_metadata(cx: &CrateContext,
+                                  fcx: Option<&FunctionContext>,
                                   node_id: ast::NodeId,
                                   global: ValueRef) {
     if cx.sess.opts.debuginfo == NoDebugInfo {
@@ -297,7 +298,7 @@ pub fn create_global_var_metadata(cx: &CrateContext,
             match item.node {
                 ast::ItemStatic(..) => (item.ident, item.span),
                 _ => cx.sess.span_bug(item.span,
-                                      format!("debuginfo::create_captured_var_metadata() - Captured
+                                      format!("debuginfo::create_global_var_metadata() - Captured
                                               var-id refers to unexpected ast_item variant: {:?}",
                                               var_item))
             }
@@ -319,13 +320,20 @@ pub fn create_global_var_metadata(cx: &CrateContext,
     let namespace_node = namespace_for_item(cx, ast_util::local_def(node_id));
     let var_name = token::get_ident(ident).get().to_str();
     let linkage_name = namespace_node.mangled_name_of_contained_item(var_name);
-    let var_scope = namespace_node.scope;
+
+    let scope_metadata = match fcx {
+        Some(fcx) => match maybe_scope_metadata(fcx, node_id, span) {
+            Some(scope_metadata) => scope_metadata,
+            None => namespace_node.scope
+        },
+        None => namespace_node.scope
+    };
 
     var_name.with_c_str(|var_name| {
         linkage_name.with_c_str(|linkage_name| {
             unsafe {
                 llvm::LLVMDIBuilderCreateStaticVariable(DIB(cx),
-                                                        var_scope,
+                                                        scope_metadata,
                                                         var_name,
                                                         linkage_name,
                                                         file_metadata,
@@ -1112,19 +1120,24 @@ fn file_metadata(cx: &CrateContext, full_path: &str) -> DIFile {
     return file_metadata;
 }
 
+fn maybe_scope_metadata(fcx: &FunctionContext,
+                        node_id: ast::NodeId,
+                        span: Span)
+                        -> Option<DIScope> {
+    let scope_map = &fcx.debug_context.get_ref(fcx.ccx, span).scope_map;
+    let scope_map = scope_map.borrow();
+    scope_map.get().find_copy(&node_id)
+}
+
 /// Finds the scope metadata node for the given AST node.
 fn scope_metadata(fcx: &FunctionContext,
                   node_id: ast::NodeId,
                   span: Span)
                -> DIScope {
-    let scope_map = &fcx.debug_context.get_ref(fcx.ccx, span).scope_map;
-    let scope_map = scope_map.borrow();
-
-    match scope_map.get().find_copy(&node_id) {
+    match maybe_scope_metadata(fcx, node_id, span) {
         Some(scope_metadata) => scope_metadata,
         None => {
             let node = fcx.ccx.tcx.map.get(node_id);
-
             fcx.ccx.sess.span_bug(span,
                 format!("debuginfo: Could not find scope info for node {:?}", node));
         }
@@ -2443,8 +2456,15 @@ fn populate_scope_map(cx: &CrateContext,
                 for exp in local.init.iter() {
                     walk_expr(cx, *exp, scope_stack, scope_map);
                 }
+            },
+            codemap::Spanned { node: ast::DeclItem(item), .. } => {
+                match item.node {
+                    ast::ItemStatic(..) => {
+                        scope_map.insert(item.id, scope_stack.last().unwrap().scope_metadata);
+                    },
+                    _ => ()
+                }
             }
-            _ => ()
         }
     }
 

@@ -48,10 +48,13 @@
 // check:$13 = 2.5
 // debugger:print 'basic-types-globals'::F64
 // check:$14 = 3.5
+// debugger:print IN_FUNC
+// check:$15 = 1024
 // debugger:detach
 // debugger:quit
 
 #[allow(unused_variable)];
+#[allow(dead_code)];
 
 static B: bool = false;
 static I: int = -1;
@@ -69,6 +72,7 @@ static F32: f32 = 2.5;
 static F64: f64 = 3.5;
 
 fn main() {
+    static IN_FUNC: int = 1024;
     _zzz();
 }
 

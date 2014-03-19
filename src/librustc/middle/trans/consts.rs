@@ -174,7 +174,7 @@ pub fn get_const_val(cx: @CrateContext,
 
         match cx.tcx.map.expect_item(def_id.node).node {
             ast::ItemStatic(_, ast::MutImmutable, _) => {
-                trans_const(cx, ast::MutImmutable, def_id.node);
+                trans_const(cx, None, ast::MutImmutable, def_id.node);
             }
             _ => {}
         }
@@ -695,18 +695,21 @@ fn const_expr_unadjusted(cx: @CrateContext, e: &ast::Expr,
     }
 }
 
-pub fn trans_const(ccx: @CrateContext, m: ast::Mutability, id: ast::NodeId) {
+pub fn trans_const(ccx: @CrateContext,
+                   fcx: Option<&FunctionContext>,
+                   m: ast::Mutability,
+                   id: ast::NodeId) {
+    let _icx = push_ctxt("trans_const");
+    let g = base::get_item_val(ccx, id);
+    // At this point, get_item_val has already translated the
+    // constant's initializer to determine its LLVM type.
+    let const_values = ccx.const_values.borrow();
+    let v = const_values.get().get_copy(&id);
     unsafe {
-        let _icx = push_ctxt("trans_const");
-        let g = base::get_item_val(ccx, id);
-        // At this point, get_item_val has already translated the
-        // constant's initializer to determine its LLVM type.
-        let const_values = ccx.const_values.borrow();
-        let v = const_values.get().get_copy(&id);
         llvm::LLVMSetInitializer(g, v);
         if m != ast::MutMutable {
             llvm::LLVMSetGlobalConstant(g, True);
         }
-        debuginfo::create_global_var_metadata(ccx, id, g);
     }
+    debuginfo::create_global_var_metadata(ccx, fcx, id, g);
 }

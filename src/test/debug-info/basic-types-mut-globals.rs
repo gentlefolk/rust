@@ -82,6 +82,8 @@
 // check:$27 = 5.75
 // debugger:print 'basic-types-mut-globals'::F64
 // check:$28 = 9.25
+// debugger:print 'basic-types-mut-globals'::MUT_IN_FUNC
+// check:$28 = 256
 
 // debugger:detach
 // debugger:quit
@@ -104,6 +106,8 @@ static mut F32: f32 = 2.5;
 static mut F64: f64 = 3.5;
 
 fn main() {
+    static mut MUT_IN_FUNC: int = 128;
+
     _zzz();
 
     unsafe {
@@ -121,6 +125,7 @@ fn main() {
         U64 = 128;
         F32 = 5.75;
         F64 = 9.25;
+        MUT_IN_FUNC = 256;
     }
 
     _zzz();

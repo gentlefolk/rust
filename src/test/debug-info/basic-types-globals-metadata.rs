@@ -46,6 +46,7 @@
 // debugger:quit
 
 #[allow(unused_variable)];
+#[allow(dead_code)];
 
 static B: bool = false;
 static I: int = -1;
